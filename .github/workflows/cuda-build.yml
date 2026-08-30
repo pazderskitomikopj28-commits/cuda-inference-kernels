@@ -1,0 +1,18 @@
+name: cuda-compile
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install build tools
+        run: apt-get update && apt-get install -y --no-install-recommends cmake ninja-build g++
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80
+      - name: Compile
+        run: cmake --build build --parallel

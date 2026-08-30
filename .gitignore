@@ -1,0 +1,14 @@
+build/
+build-*/
+out/
+reports/
+*.obj
+*.o
+*.exe
+*.dll
+*.so
+*.nsys-rep
+*.qdstrm
+*.sqlite
+*.csv
+.vscode/settings.json
