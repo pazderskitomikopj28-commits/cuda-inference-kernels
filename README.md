@@ -30,7 +30,7 @@ Windows PowerShell（工具链与产物均在 D 盘）：
 ```powershell
 .\scripts\build_windows.ps1
 & D:\DevTools\Builds\cuda-inference-kernels-rtx4060\Release\rmsnorm_bench.exe `
-  --mode all --rows 4096 --hidden 4096 --block-size 256 `
+  --mode all --rows 4096 --hidden 4096 --block-size 128 `
   --warmup 10 --iters 100
 ```
 
@@ -40,7 +40,8 @@ Linux：
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
-./build/rmsnorm_bench --mode all --rows 4096 --hidden 4096 --warmup 10 --iters 100
+./build/rmsnorm_bench --mode all --rows 4096 --hidden 4096 --block-size 128 \
+  --warmup 10 --iters 100
 ```
 
 程序使用 CUDA Event 报告每次算子调用的 Mean/P50/P95。`logical_GBps` 按每个输出

@@ -13,7 +13,7 @@ enum class RmsNormVariant {
 struct RmsNormOptions {
   std::size_t rows = 4096;
   std::size_t hidden_size = 4096;
-  int block_size = 256;
+  int block_size = 128;
   int warmup_iterations = 10;
   int measured_iterations = 100;
   float epsilon = 1.0e-5f;
