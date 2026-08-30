@@ -63,6 +63,9 @@ Nsight Systems 用于确认 launch 数量和时间线，Nsight Compute 用于检
 occupancy 和指令行为。Profiler 会改变绝对耗时，因此性能表使用未插桩的 Event 结果，
 profile 只作为机制证据。
 
+如果目标机的 Nsight Compute 无法初始化，可用 `-SkipNcu` 只生成 Systems 报告；
+应在结果文档中明确记录缺失的 hardware counters，不能用 Event 或 SASS 代替这些指标。
+
 ## 后续实验
 
 - FP16/BF16 输入、FP32 累加与向量化转换；

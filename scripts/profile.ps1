@@ -4,6 +4,7 @@ param(
   [string]$Mode = 'fused-float4',
   [int]$Rows = 4096,
   [int]$Hidden = 4096,
+  [switch]$SkipNcu,
   [string]$Executable = 'D:\DevTools\Builds\cuda-inference-kernels-rtx4060\Release\rmsnorm_bench.exe',
   [string]$ReportDir = 'D:\DevTools\Profiles\cuda-inference-kernels'
 )
@@ -32,11 +33,13 @@ try {
     @platformOptions -o (Join-Path $ReportDir $name) $Executable `
     --mode $Mode --rows $Rows --hidden $Hidden --warmup 1 --iters 5
   if ($LASTEXITCODE -ne 0) { throw "nsys failed: $LASTEXITCODE" }
-  ncu --force-overwrite --set basic --page raw --kernel-name-base demangled `
-    --launch-skip $launchSkip --launch-count $launchCount --csv `
-    --log-file (Join-Path $ReportDir "$name-ncu.csv") $Executable `
-    --mode $Mode --rows $Rows --hidden $Hidden --warmup 1 --iters 1
-  if ($LASTEXITCODE -ne 0) { throw "ncu failed: $LASTEXITCODE" }
+  if (-not $SkipNcu) {
+    ncu --force-overwrite --set basic --page raw --kernel-name-base demangled `
+      --launch-skip $launchSkip --launch-count $launchCount --csv `
+      --log-file (Join-Path $ReportDir "$name-ncu.csv") $Executable `
+      --mode $Mode --rows $Rows --hidden $Hidden --warmup 1 --iters 1
+    if ($LASTEXITCODE -ne 0) { throw "ncu failed: $LASTEXITCODE" }
+  }
 } finally {
   Pop-Location
 }
