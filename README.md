@@ -54,6 +54,16 @@ ctest --test-dir build --output-on-failure
 路径为 6 bytes。这是跨同精度实现一致的有效吞吐口径，不等于 profiler 观察到的物理
 DRAM bytes。
 
+要复现交错顺序的多进程采样并保留原始样本，可运行：
+
+```powershell
+.\scripts\benchmark_interleaved.ps1 `
+  -OutputCsv D:\DevTools\Benchmarks\cuda-inference-kernels\rmsnorm-interleaved.csv
+```
+
+脚本默认使用 7 轮、4 个独立进程、每进程 20 次预热和 300 次计时；`-Rows`、
+`-Hidden`、`-BlockSize`、`-Runs` 等参数可用于形状和配置实验。
+
 ## VSCode 开发
 
 仓库包含 `.vscode/launch.json` 和 `tasks.json`。在 Windows 上打开仓库后，Run and
