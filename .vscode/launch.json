@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug RMSNorm benchmark",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "D:/DevTools/Builds/cuda-inference-kernels-vscode-debug/Debug/rmsnorm_bench.exe",
+      "args": ["--mode", "all", "--rows", "1024", "--hidden", "4096", "--block-size", "128", "--warmup", "2", "--iters", "10"],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Debug (CUDA Inference Kernels)",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "environment": [
+        { "name": "CUDA_PATH", "value": "D:/DevTools/NVIDIA/CUDA/v12.4" }
+      ]
+    },
+    {
+      "name": "Debug RMSNorm unit tests",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "D:/DevTools/Builds/cuda-inference-kernels-vscode-debug/Debug/rmsnorm_tests.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build Debug (CUDA Inference Kernels)",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "environment": [
+        { "name": "CUDA_PATH", "value": "D:/DevTools/NVIDIA/CUDA/v12.4" }
+      ]
+    }
+  ]
+}

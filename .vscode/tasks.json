@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Debug (CUDA Inference Kernels)",
+      "type": "shell",
+      "command": "PowerShell.exe",
+      "args": [
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+        "${workspaceFolder}/scripts/build_windows.ps1",
+        "-BuildDir", "D:/DevTools/Builds/cuda-inference-kernels-vscode-debug",
+        "-Configuration", "Debug",
+        "-Architecture", "89"
+      ],
+      "problemMatcher": [],
+      "options": {
+        "env": {
+          "TEMP": "D:/DevTools/Builds/_temp",
+          "TMP": "D:/DevTools/Builds/_temp"
+        }
+      }
+    }
+  ]
+}

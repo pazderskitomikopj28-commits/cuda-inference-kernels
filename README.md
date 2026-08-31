@@ -48,6 +48,16 @@ ctest --test-dir build --output-on-failure
 元素一次输入读取、一次权重读取和一次输出写入（共 12 bytes）计算，是跨实现一致的
 有效吞吐口径，不等于 profiler 观察到的物理 DRAM bytes。
 
+## VSCode 开发
+
+仓库包含 `.vscode/launch.json` 和 `tasks.json`。在 Windows 上打开仓库后，Run and
+Debug 中选择 `Debug RMSNorm benchmark` 或 `Debug RMSNorm unit tests`，按 F5 会调用
+`scripts/build_windows.ps1`，在
+`D:\DevTools\Builds\cuda-inference-kernels-vscode-debug` 构建 Debug 目标并运行 CTest。
+
+`.devcontainer/devcontainer.json` 提供 CUDA 12.4 GPU 容器配置，并在容器中安装
+Nsight VSCode Edition、C/C++ 和 CMake Tools。需要 Docker Desktop 的 WSL2 GPU 后端。
+
 ## Profiling 与安全检查
 
 ```powershell

@@ -1,0 +1,16 @@
+{
+  "name": "CUDA Inference Kernels (CUDA 12.4)",
+  "image": "nvidia/cuda:12.4.1-devel-ubuntu22.04",
+  "runArgs": ["--gpus=all"],
+  "remoteUser": "root",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "NVIDIA.nsight-vscode-edition",
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ]
+    }
+  },
+  "postCreateCommand": "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake ninja-build git && nvcc --version && nvidia-smi"
+}
