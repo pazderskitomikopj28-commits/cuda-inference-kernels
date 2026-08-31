@@ -26,6 +26,14 @@ int main() {
       }
     }
 
+    const auto half2 = inference_kernels::benchmark_rmsnorm(
+        options, inference_kernels::RmsNormVariant::kFusedHalf2);
+    if (half2.max_abs_error >= 2.0e-3 ||
+        half2.verified_elements != options.rows * options.hidden_size) {
+      std::cerr << "RMSNorm half2 correctness failed\n";
+      return 1;
+    }
+
     options.rows = 7;
     options.hidden_size = 1003;
     const auto uneven = inference_kernels::benchmark_rmsnorm(
@@ -44,6 +52,18 @@ int main() {
     }
     if (!rejected) {
       std::cerr << "float4 variant accepted an incompatible hidden size\n";
+      return 1;
+    }
+
+    rejected = false;
+    try {
+      (void)inference_kernels::benchmark_rmsnorm(
+          options, inference_kernels::RmsNormVariant::kFusedHalf2);
+    } catch (const std::invalid_argument&) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::cerr << "half2 variant accepted an incompatible hidden size\n";
       return 1;
     }
 

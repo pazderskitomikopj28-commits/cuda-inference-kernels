@@ -46,9 +46,11 @@ CliOptions parse_options(int argc, char** argv) {
     }
   }
   if (options.mode != "all" && options.mode != "two-pass" &&
-      options.mode != "fused-scalar" && options.mode != "fused-float4") {
+      options.mode != "fused-scalar" && options.mode != "fused-float4" &&
+      options.mode != "fused-half2") {
     throw std::invalid_argument(
-        "--mode must be all, two-pass, fused-scalar or fused-float4");
+        "--mode must be all, two-pass, fused-scalar, fused-float4 or "
+        "fused-half2");
   }
   return options;
 }
@@ -102,6 +104,9 @@ int main(int argc, char** argv) {
     if (options.mode == "all" || options.mode == "fused-float4") {
       variants.push_back(inference_kernels::RmsNormVariant::kFusedVectorized);
     }
+    if (options.mode == "all" || options.mode == "fused-half2") {
+      variants.push_back(inference_kernels::RmsNormVariant::kFusedHalf2);
+    }
 
     bool valid = true;
     double reference_p50 = 0.0;
@@ -109,7 +114,11 @@ int main(int argc, char** argv) {
       const auto result =
           inference_kernels::benchmark_rmsnorm(options.benchmark, variant);
       print_result(variant, result);
-      valid = valid && result.max_abs_error < 1.0e-4;
+      const double tolerance =
+          variant == inference_kernels::RmsNormVariant::kFusedHalf2
+              ? 2.0e-3
+              : 1.0e-4;
+      valid = valid && result.max_abs_error < tolerance;
       if (variant == inference_kernels::RmsNormVariant::kTwoPass) {
         reference_p50 = result.p50_milliseconds;
       } else if (reference_p50 > 0.0) {

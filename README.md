@@ -2,8 +2,9 @@
 
 [![CUDA compile](https://github.com/pazderskitomikopj28-commits/cuda-inference-kernels/actions/workflows/cuda-build.yml/badge.svg)](https://github.com/pazderskitomikopj28-commits/cuda-inference-kernels/actions/workflows/cuda-build.yml)
 
-一个以推理工作负载为背景的 CUDA 算子实验仓库。首个算子是 FP32 RMSNorm：从可
-验证的两 Kernel 参考路径开始，逐步比较融合标量实现和 `float4` 向量化实现。
+一个以推理工作负载为背景的 CUDA 算子实验仓库。首个算子是 RMSNorm：从可验证的
+两 Kernel FP32 参考路径开始，逐步比较融合标量、`float4` 向量化，以及 FP16
+`half2` 融合实现。
 
 ## RMSNorm 定义
 
@@ -13,15 +14,19 @@
 y[i] = x[i] * rsqrt(mean(x²) + epsilon) * w[i]
 ```
 
-三条实现保持相同的输入、权重、block size 和误差检查：
+四条实现使用同一随机种子、形状、block size 和参考公式：
 
 - `two-pass`：先计算每行 inverse RMS，再用第二个 Kernel 应用归一化；
 - `fused-scalar`：一个 block 处理一行，warp shuffle + shared memory 完成 block
   reduction，在同一 Kernel 内写回；
 - `fused-float4`：保持融合 reduction，并对输入、权重和输出使用 128-bit 向量访问。
+- `fused-half2`：输入、权重和输出存为 FP16；每个线程按 `half2` 读取两个元素，
+  但平方和和 inverse RMS 均保留为 FP32。
 
-`float4` 路径要求 hidden size 能被 4 整除。大规模 benchmark 默认均匀验证 8192
-个输出；单元测试对小型张量全量验证，并覆盖非整除 hidden size 和非法 block 配置。
+`float4` 路径要求 hidden size 能被 4 整除，`half2` 路径要求能被 2 整除。FP16
+路径以量化后的输入和权重作为参考，并使用 `2e-3` 的输出误差阈值；其余 FP32
+路径使用 `1e-4`。大规模 benchmark 默认均匀验证 8192 个输出；单元测试对小型张量
+全量验证，并覆盖非整除 hidden size 和非法 block 配置。
 
 ## 构建与运行
 
@@ -45,8 +50,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 程序使用 CUDA Event 报告每次算子调用的 Mean/P50/P95。`logical_GBps` 按每个输出
-元素一次输入读取、一次权重读取和一次输出写入（共 12 bytes）计算，是跨实现一致的
-有效吞吐口径，不等于 profiler 观察到的物理 DRAM bytes。
+元素一次输入读取、一次权重读取和一次输出写入计算：FP32 路径为 12 bytes，FP16
+路径为 6 bytes。这是跨同精度实现一致的有效吞吐口径，不等于 profiler 观察到的物理
+DRAM bytes。
 
 ## VSCode 开发
 
@@ -81,7 +87,8 @@ RTX 4060 Laptop GPU 的五进程对照、block-size sweep、Systems 时间线和
 
 ## 后续实验
 
-- FP16/BF16 输入、FP32 累加与向量化转换；
+- BF16 输入、FP32 累加与向量化转换；
+- 支持未对齐 hidden size 的安全尾部处理；
 - 针对小 hidden size 的一 warp 一行实现；
 - 将 RMSNorm 与后续量化或门控算子融合；
 - 在不同 GPU 上重新 sweep block size，不把 RTX 4060 的最优配置当作通用结论。

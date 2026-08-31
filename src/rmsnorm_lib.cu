@@ -1,5 +1,6 @@
 #include "rmsnorm.cuh"
 
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
 #include <algorithm>
@@ -184,6 +185,36 @@ __global__ void fused_rmsnorm_float4_kernel(
   }
 }
 
+__global__ void fused_rmsnorm_half2_kernel(
+    const __half2* input, const __half2* weights, __half2* output,
+    std::size_t pairs_per_row, std::size_t hidden_size, float epsilon) {
+  const std::size_t row = blockIdx.x;
+  const __half2* row_input = input + row * pairs_per_row;
+  __half2* row_output = output + row * pairs_per_row;
+  float sum = 0.0f;
+  for (std::size_t column = threadIdx.x; column < pairs_per_row;
+       column += blockDim.x) {
+    const float2 value = __half22float2(row_input[column]);
+    sum = fmaf(value.x, value.x, sum);
+    sum = fmaf(value.y, value.y, sum);
+  }
+  sum = block_sum(sum);
+  __shared__ float inverse_rms;
+  if (threadIdx.x == 0) {
+    inverse_rms =
+        rsqrtf(sum / static_cast<float>(hidden_size) + epsilon);
+  }
+  __syncthreads();
+  for (std::size_t column = threadIdx.x; column < pairs_per_row;
+       column += blockDim.x) {
+    const float2 value = __half22float2(row_input[column]);
+    const float2 weight = __half22float2(weights[column]);
+    row_output[column] = __floats2half2_rn(
+        value.x * inverse_rms * weight.x,
+        value.y * inverse_rms * weight.y);
+  }
+}
+
 void validate_options(const inference_kernels::RmsNormOptions& options,
                       inference_kernels::RmsNormVariant variant) {
   if (options.rows == 0 || options.hidden_size == 0 ||
@@ -216,6 +247,11 @@ void validate_options(const inference_kernels::RmsNormOptions& options,
     throw std::invalid_argument(
         "the float4 RMSNorm variant requires hidden size divisible by four");
   }
+  if (variant == inference_kernels::RmsNormVariant::kFusedHalf2 &&
+      options.hidden_size % 2 != 0) {
+    throw std::invalid_argument(
+        "the half2 RMSNorm variant requires hidden size divisible by two");
+  }
 }
 
 void fill_inputs(std::vector<float>& input, std::vector<float>& weights) {
@@ -224,6 +260,23 @@ void fill_inputs(std::vector<float>& input, std::vector<float>& weights) {
   std::uniform_real_distribution<float> weight_distribution(0.5f, 1.5f);
   for (float& value : input) value = input_distribution(generator);
   for (float& value : weights) value = weight_distribution(generator);
+}
+
+std::vector<__half> quantize_to_half(std::vector<float>& values) {
+  std::vector<__half> quantized(values.size());
+  for (std::size_t index = 0; index < values.size(); ++index) {
+    quantized[index] = __float2half(values[index]);
+    values[index] = __half2float(quantized[index]);
+  }
+  return quantized;
+}
+
+std::vector<float> convert_from_half(const std::vector<__half>& values) {
+  std::vector<float> converted(values.size());
+  for (std::size_t index = 0; index < values.size(); ++index) {
+    converted[index] = __half2float(values[index]);
+  }
+  return converted;
 }
 
 void launch_rmsnorm(inference_kernels::RmsNormVariant variant,
@@ -254,6 +307,19 @@ void launch_rmsnorm(inference_kernels::RmsNormVariant variant,
         options.hidden_size, options.epsilon);
     CUDA_CHECK(cudaGetLastError());
   }
+}
+
+void launch_rmsnorm_half2(const inference_kernels::RmsNormOptions& options,
+                          const __half* input, const __half* weights,
+                          __half* output, cudaStream_t stream) {
+  const dim3 row_grid(static_cast<unsigned int>(options.rows));
+  const dim3 block(static_cast<unsigned int>(options.block_size));
+  fused_rmsnorm_half2_kernel<<<row_grid, block, 0, stream>>>(
+      reinterpret_cast<const __half2*>(input),
+      reinterpret_cast<const __half2*>(weights),
+      reinterpret_cast<__half2*>(output), options.hidden_size / 2,
+      options.hidden_size, options.epsilon);
+  CUDA_CHECK(cudaGetLastError());
 }
 
 double reference_inverse_rms(const std::vector<float>& input,
@@ -345,6 +411,8 @@ const char* variant_name(RmsNormVariant variant) {
       return "fused_scalar";
     case RmsNormVariant::kFusedVectorized:
       return "fused_float4";
+    case RmsNormVariant::kFusedHalf2:
+      return "fused_half2";
   }
   return "unknown";
 }
@@ -357,6 +425,63 @@ BenchmarkResult benchmark_rmsnorm(const RmsNormOptions& options,
   std::vector<float> host_weights(options.hidden_size);
   std::vector<float> host_output(elements);
   fill_inputs(host_input, host_weights);
+
+  if (variant == RmsNormVariant::kFusedHalf2) {
+    const std::vector<__half> host_input_half = quantize_to_half(host_input);
+    const std::vector<__half> host_weights_half = quantize_to_half(host_weights);
+    std::vector<__half> host_output_half(elements);
+    DeviceBuffer<__half> device_input(elements);
+    DeviceBuffer<__half> device_weights(options.hidden_size);
+    DeviceBuffer<__half> device_output(elements);
+    CUDA_CHECK(cudaMemcpy(device_input.data(), host_input_half.data(),
+                          elements * sizeof(__half), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(device_weights.data(), host_weights_half.data(),
+                          options.hidden_size * sizeof(__half),
+                          cudaMemcpyHostToDevice));
+    Stream stream;
+    Event start;
+    Event stop;
+
+    for (int iteration = 0; iteration < options.warmup_iterations;
+         ++iteration) {
+      launch_rmsnorm_half2(options, device_input.data(), device_weights.data(),
+                           device_output.data(), stream.get());
+    }
+    CUDA_CHECK(cudaStreamSynchronize(stream.get()));
+
+    std::vector<float> timings;
+    timings.reserve(options.measured_iterations);
+    for (int iteration = 0; iteration < options.measured_iterations;
+         ++iteration) {
+      CUDA_CHECK(cudaEventRecord(start.get(), stream.get()));
+      launch_rmsnorm_half2(options, device_input.data(), device_weights.data(),
+                           device_output.data(), stream.get());
+      CUDA_CHECK(cudaEventRecord(stop.get(), stream.get()));
+      CUDA_CHECK(cudaEventSynchronize(stop.get()));
+      float milliseconds = 0.0f;
+      CUDA_CHECK(cudaEventElapsedTime(&milliseconds, start.get(), stop.get()));
+      timings.push_back(milliseconds);
+    }
+
+    CUDA_CHECK(cudaMemcpy(host_output_half.data(), device_output.data(),
+                          elements * sizeof(__half), cudaMemcpyDeviceToHost));
+    host_output = convert_from_half(host_output_half);
+    const VerificationResult verification =
+        verify_output(host_input, host_weights, host_output, options);
+    const double mean =
+        std::accumulate(timings.begin(), timings.end(), 0.0) /
+        static_cast<double>(timings.size());
+    const double p50 = median_value(timings);
+    const double p95 = nearest_rank(timings, 0.95);
+    const double logical_bytes =
+        static_cast<double>(elements) * sizeof(__half) * 3.0;
+    return {mean,
+            p50,
+            p95,
+            logical_bytes / (p50 * 1.0e6),
+            verification.max_abs_error,
+            verification.checked_elements};
+  }
 
   DeviceBuffer<float> device_input(elements);
   DeviceBuffer<float> device_weights(options.hidden_size);

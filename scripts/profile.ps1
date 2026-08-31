@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('two-pass', 'fused-scalar', 'fused-float4')]
+  [ValidateSet('two-pass', 'fused-scalar', 'fused-float4', 'fused-half2')]
   [string]$Mode = 'fused-float4',
   [int]$Rows = 4096,
   [int]$Hidden = 4096,

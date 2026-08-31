@@ -8,6 +8,7 @@ enum class RmsNormVariant {
   kTwoPass,
   kFusedScalar,
   kFusedVectorized,
+  kFusedHalf2,
 };
 
 struct RmsNormOptions {
