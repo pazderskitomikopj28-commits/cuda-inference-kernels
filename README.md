@@ -86,6 +86,8 @@ RTX 4060 Laptop GPU 的 FP32 五进程对照、block-size sweep、Systems 时间
 检查见 [`docs/results/rmsnorm-rtx4060-2026-08-30.md`](docs/results/rmsnorm-rtx4060-2026-08-30.md)。
 FP16 `half2` 的精度、交错 block-size sweep 和 Systems 验证见
 [`docs/results/rmsnorm-fp16-half2-rtx4060-2026-08-31.md`](docs/results/rmsnorm-fp16-half2-rtx4060-2026-08-31.md)。
+当前提交的 28 进程交错顺序复测、hidden size 敏感性和最新 Systems 证据见
+[`docs/results/rmsnorm-rtx4060-2026-09-01.md`](docs/results/rmsnorm-rtx4060-2026-09-01.md)。
 
 ## 后续实验
 
