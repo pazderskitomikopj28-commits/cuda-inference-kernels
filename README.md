@@ -82,8 +82,10 @@ profile 只作为机制证据。
 如果目标机的 Nsight Compute 无法初始化，可用 `-SkipNcu` 只生成 Systems 报告；
 应在结果文档中明确记录缺失的 hardware counters，不能用 Event 或 SASS 代替这些指标。
 
-RTX 4060 Laptop GPU 的五进程对照、block-size sweep、Systems 时间线和 SASS
+RTX 4060 Laptop GPU 的 FP32 五进程对照、block-size sweep、Systems 时间线和 SASS
 检查见 [`docs/results/rmsnorm-rtx4060-2026-08-30.md`](docs/results/rmsnorm-rtx4060-2026-08-30.md)。
+FP16 `half2` 的精度、交错 block-size sweep 和 Systems 验证见
+[`docs/results/rmsnorm-fp16-half2-rtx4060-2026-08-31.md`](docs/results/rmsnorm-fp16-half2-rtx4060-2026-08-31.md)。
 
 ## 后续实验
 
